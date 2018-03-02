@@ -11,44 +11,12 @@ from multiprocessing import Pool
 
 config.MELT_BINARY = 'melt'
 
-
-import youtube_dl
-
-
-class MyLogger(object):
-    def debug(self, msg):
-        pass
-
-    def warning(self, msg):
-        pass
-
-    def error(self, msg):
-        print(msg)
-
-
-def subtitle_hook(d):
-    print(d)
-    if d['status'] == 'finished':
-        print('Done downloading')
-        print(d)
-
-
 def download_subtitles(q, page=1, total_pages=1):
     url = 'https://www.youtube.com/results?search_query={},cc&page={}'.format(q, page)
     call(['youtube-dl', url, '--write-auto-sub', '--skip-download', '-o', '%(id)s'])
 
     if page < total_pages:
         download_subtitles(q, page+1, total_pages)
-
-    # ydl_opts = {
-    #     'logger': MyLogger(),
-    #     'progress_hooks': [subtitle_hook],
-    #     'skip_download': True,
-    #     'writeautomaticsub': True,
-    #     'outtmpl': '%(id)s.%(ext)s'
-    # }
-    # with youtube_dl.YoutubeDL(ydl_opts) as ydl:
-    #     ydl.download([url])
 
 
 def get_timestamps(q):
@@ -85,7 +53,6 @@ def get_vid_url(vid):
 
 def download_segment(url, start, end, outname):
     args = ['melt', url, 'in=:{}'.format(start), 'out=:{}'.format(end), '-consumer', 'avformat:{}'.format(outname)]
-    # print(' '.join(args))
     call(args)
     return outname
 
@@ -119,7 +86,7 @@ def compose(timestamps):
 
 
     clipnames = p.starmap(download_segment, to_download)
-    # call(['concat'])
+
     clips = []
     for f in clipnames:
         clips.append(Clip(f))
@@ -127,15 +94,14 @@ def compose(timestamps):
     comp = Composition(clips, singletrack=True)
     comp.save('supercut.mp4')
 
-    # ffmpeg -ss 14350 -i $(youtube-dl -f 22 --get-url https://www.youtube.com/watch?v=videoId) > -t 11200 -c:v copy -c:a copy output.mp4
+
+def main():
+    download_subtitles(sys.argv[1], page=1, total_pages=5)
+    comp = get_timestamps(sys.argv[1])
+    compose(comp)
 
 
-
-# download_subtitles(sys.argv[1], page=2, total_pages=5)
-comp = get_timestamps(sys.argv[1])
-compose(comp)
-# print(comp)
-# print(comp.keys())
-
+if __name__ == '__main__':
+    main()
 
 
